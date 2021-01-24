@@ -74,7 +74,7 @@ def exact_duplicates_jaccard(train_data, test_data):
     for _, test_row in test_data.iterrows():
         for _, train_row in train_data.iterrows():
             distance = get_jaccard_sim(test_row.Content, train_row.Content)
-            if distance < 0.2:
+            if distance > 0.8:
                 duplicates += 1
                 break
 
@@ -166,7 +166,7 @@ def query_lsh_cosine(lsh, test_data):
 def read_data(rows):
     print('Reading Data')
     path = './datasets2020/datasets/q2a/'
-    train_data = pandas.read_csv(path + "corpusTrain.csv", delimiter=',', nrows=500)
+    train_data = pandas.read_csv(path + "corpusTrain.csv", delimiter=',', nrows=5000)
     test_data = pandas.read_csv(path + "corpusTest.csv", delimiter=',', nrows=None)
     return train_data, test_data
 
@@ -222,14 +222,14 @@ if __name__ == '__main__':
     # Read data
     train_data, test_data = read_data(rows)
 
-    # Preprocess Data for Minhash lsh
-    build_time, lsh, test_sets = train_min_hash_lsh(train_data, test_data, perms)
-
-    # Query Data in Minhash lsh
-    query_time, duplicates = query_lsh(lsh, test_sets)
-
-    # Display results
-    display_results("Minhash lsh", duplicates, query_time, build_time)
+    # # Preprocess Data for Minhash lsh
+    # build_time, lsh, test_sets = train_min_hash_lsh(train_data, test_data, perms)
+    #
+    # # Query Data in Minhash lsh
+    # query_time, duplicates = query_lsh(lsh, test_sets)
+    #
+    # # Display results
+    # display_results("Minhash lsh", duplicates, query_time, build_time)
 
     # Find exact duplicates with Jaccard
     # duplicates, query_time = exact_duplicates_jaccard(train_data, test_data)
@@ -238,15 +238,15 @@ if __name__ == '__main__':
     # display_results("Exact jaccard", duplicates, query_time)
 
     # Find exact duplicates with cosine similarity
-    query_time, duplicates = exact_duplicates_cosine(train_data, test_data)
+    # query_time, duplicates = exact_duplicates_cosine(train_data, test_data)
 
     # Display results
-    display_results("Exact cosine", duplicates, query_time)
+    # display_results("Exact cosine", duplicates, query_time)
 
-    # Build lsh
+    # # Build lsh
     lsh, build_time, vec_test_data = lsh_cosine(train_data, test_data, k=2)
-
-    #  Find duplicates with lsh-cosine
+    #
+    # #  Find duplicates with lsh-cosine
     query_time, duplicates = query_lsh_cosine(lsh, vec_test_data)
 
     display_results("lsh-cosine", duplicates, query_time, build_time)
