@@ -223,30 +223,30 @@ if __name__ == '__main__':
     train_data, test_data = read_data(rows)
 
     # # Preprocess Data for Minhash lsh
-    # build_time, lsh, test_sets = train_min_hash_lsh(train_data, test_data, perms)
-    #
+    build_time, lsh, test_sets = train_min_hash_lsh(train_data, test_data, perms)
+
     # # Query Data in Minhash lsh
-    # query_time, duplicates = query_lsh(lsh, test_sets)
-    #
+    query_time, duplicates = query_lsh(lsh, test_sets)
+
     # # Display results
-    # display_results("Minhash lsh", duplicates, query_time, build_time)
+    display_results("Minhash lsh", duplicates, query_time, build_time)
 
     # Find exact duplicates with Jaccard
-    # duplicates, query_time = exact_duplicates_jaccard(train_data, test_data)
+    duplicates, query_time = exact_duplicates_jaccard(train_data, test_data)
 
     # Display results
-    # display_results("Exact jaccard", duplicates, query_time)
+    display_results("Exact jaccard", duplicates, query_time)
 
     # Find exact duplicates with cosine similarity
-    # query_time, duplicates = exact_duplicates_cosine(train_data, test_data)
+    query_time, duplicates = exact_duplicates_cosine(train_data, test_data)
 
     # Display results
-    # display_results("Exact cosine", duplicates, query_time)
+    display_results("Exact cosine", duplicates, query_time)
 
     # # Build lsh
     lsh, build_time, vec_test_data = lsh_cosine(train_data, test_data, k=2)
-    #
-    # #  Find duplicates with lsh-cosine
+
+    #  Find duplicates with lsh-cosine
     query_time, duplicates = query_lsh_cosine(lsh, vec_test_data)
 
     display_results("lsh-cosine", duplicates, query_time, build_time)
