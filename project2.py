@@ -74,7 +74,7 @@ def exact_duplicates_jaccard(train_data, test_data):
     for _, test_row in test_data.iterrows():
         for _, train_row in train_data.iterrows():
             distance = get_jaccard_sim(test_row.Content, train_row.Content)
-            if distance > 0.8:
+            if distance < 0.2:
                 duplicates += 1
                 break
 
@@ -165,9 +165,9 @@ def query_lsh_cosine(lsh, test_data):
 
 def read_data(rows):
     print('Reading Data')
-
-    train_data = pandas.read_csv("corpusTrain.csv", delimiter=',', nrows=500)
-    test_data = pandas.read_csv("corpusTest.csv", delimiter=',', nrows=None)
+    path = './datasets2020/datasets/q2a/'
+    train_data = pandas.read_csv(path + "corpusTrain.csv", delimiter=',', nrows=500)
+    test_data = pandas.read_csv(path + "corpusTest.csv", delimiter=',', nrows=None)
     return train_data, test_data
 
 
@@ -222,14 +222,14 @@ if __name__ == '__main__':
     # Read data
     train_data, test_data = read_data(rows)
 
-    # # Preprocess Data for Minhash lsh
-    # build_time, lsh, test_sets = train_min_hash_lsh(train_data, test_data, perms)
-    #
-    # # Query Data in Minhash lsh
-    # query_time, duplicates = query_lsh(lsh, test_sets)
-    #
-    # # Display results
-    # display_results("Minhash lsh", duplicates, query_time, build_time)
+    # Preprocess Data for Minhash lsh
+    build_time, lsh, test_sets = train_min_hash_lsh(train_data, test_data, perms)
+
+    # Query Data in Minhash lsh
+    query_time, duplicates = query_lsh(lsh, test_sets)
+
+    # Display results
+    display_results("Minhash lsh", duplicates, query_time, build_time)
 
     # Find exact duplicates with Jaccard
     # duplicates, query_time = exact_duplicates_jaccard(train_data, test_data)

@@ -6,6 +6,7 @@ from zipfile import ZipFile
 import pandas
 from keras_preprocessing.sequence import pad_sequences
 from keras_preprocessing.text import Tokenizer
+from sklearn.metrics import classification_report
 from sklearn.model_selection import train_test_split
 from keras import backend
 from tensorflow.python.keras import Input, Model
@@ -203,7 +204,7 @@ def load_data():
     return q1_data, q2_data, labels, q1_pred_data, q2_pred_data, word_embedding_matrix, nb_words
 
 
-def predict(model, q1_pred_data, q2_pred_data):
+def predict(model, q1_pred_data, q2_pred_data, y_test=None):
     # Load trained weights
     model.load_weights('question_pairs_weights.h5')
 
@@ -217,6 +218,10 @@ def predict(model, q1_pred_data, q2_pred_data):
         if pred[0] > 0.5:
             dup = 1
         duplicates.append(dup)
+
+    if y_test is not None:
+        # Print Metrics
+        print(classification_report(y_test, duplicates))
 
     return duplicates
 
@@ -244,7 +249,7 @@ if __name__ == '__main__':
     batch_size = 64
     max_sentence_words = 40
     data_processed = 1
-    model_trained = 0
+    model_trained = 1
 
     if data_processed:
         # Load preprocessed data from saved files
@@ -266,20 +271,20 @@ if __name__ == '__main__':
     # Make Model
     model = make_model(word_embedding_matrix, nb_words, activation, loss_func, embedding_dim, dropout, optimizer, layers, max_sentence_words)
 
-    if not model_trained:
-        # Split train set
-        Q1_train, Q2_train, Q1_test, Q2_test, y_train, y_test = split_train_set(q1_data, q2_data, labels)
+    # Split train set
+    Q1_train, Q2_train, Q1_test, Q2_test, y_train, y_test = split_train_set(q1_data, q2_data, labels)
 
+    if not model_trained:
         # Train Model
         callbacks = [ModelCheckpoint('question_pairs_weights.h5', monitor='val_accuracy', save_best_only=True)]
         history = model.fit([Q1_train, Q2_train], y_train, epochs=epochs, validation_split=0.1, verbose=2, batch_size=batch_size, callbacks=callbacks)
 
-        # Evaluate Model
-        evaluate(model, Q1_test, Q2_test, y_test)
+    # Evaluate Model
+    # evaluate(model, Q1_test, Q2_test, y_test)
+    predict(model, Q1_test, Q2_test, y_test)
 
-    else:
-        # Make predictions
-        predictions = predict(model, q1_pred_data, q2_pred_data)
+    # Make predictions
+    predictions = predict(model, q1_pred_data, q2_pred_data)
 
-        # Save them in a file
-        save_predictions(predictions)
+    # Save them in a file
+    save_predictions(predictions)
