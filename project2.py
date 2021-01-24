@@ -10,7 +10,9 @@ from gensim.models.word2vec import Word2Vec
 import nltk
 
 
-def preprocess_data(train_data, test_data, perms):
+def train_min_hash_lsh(train_data, test_data, perms):
+    print('Train minHashLSH')
+
     # Set LSH preprocessing timer
     start_build_time = time.time()
 
@@ -39,6 +41,8 @@ def preprocess_data(train_data, test_data, perms):
 
 
 def query_lsh(lsh, test_sets):
+    print('Query minHashLSH')
+
     # Set LSH query timer
     start_query_time = time.time()
 
@@ -115,7 +119,7 @@ def exact_duplicates_cosine(train_set, test_set):
     for test_row in test_data:
         for train_row in train_data:
             distance = cosine_dist(test_row, train_row)
-            if distance > 0.8:
+            if distance < 0.2:
                 duplicates += 1
                 break
 
@@ -151,7 +155,7 @@ def query_lsh_cosine(lsh, test_data):
     for test_row in test_data:
         nn = lsh.query(test_row, distance_func="cosine")
         for _, distance in nn:
-            if distance > 0.8:
+            if distance < 0.2:
                 duplicates += 1
                 break
     stop_query_time = time.time()
@@ -160,8 +164,10 @@ def query_lsh_cosine(lsh, test_data):
 
 
 def read_data(rows):
-    train_data = pandas.read_csv("corpusTrain.csv", delimiter=',', nrows=rows)
-    test_data = pandas.read_csv("corpusTest.csv", delimiter=',', nrows=5373)
+    print('Reading Data')
+
+    train_data = pandas.read_csv("./datasets2020/datasets/q2a/corpusTrain.csv", delimiter=',', nrows=10)
+    test_data = pandas.read_csv("./datasets2020/datasets/q2a/corpusTest.csv", delimiter=',', nrows=None)
     return train_data, test_data
 
 
@@ -210,20 +216,20 @@ def vec_with_Word2Vec(train_set, test_set, sg=0):
 
 if __name__ == '__main__':
     # Number of permutations
-    perms = 32  # 16 | 32 | 64
-    rows = 500  # Number of rows to read
+    perms = 64  # 16 | 32 | 64
+    rows = 3  # Number of rows to read
 
     # Read data
     train_data, test_data = read_data(rows)
 
-    # Preprocess Data for Minhash lsh
-    build_time, lsh, test_sets = preprocess_data(train_data, test_data, perms)
-
-    # Query Data in Minhash lsh
-    query_time, duplicates = query_lsh(lsh, test_sets)
-
-    # Display results
-    display_results("Minhash lsh", duplicates, query_time, build_time)
+    # # Preprocess Data for Minhash lsh
+    # build_time, lsh, test_sets = train_min_hash_lsh(train_data, test_data, perms)
+    #
+    # # Query Data in Minhash lsh
+    # query_time, duplicates = query_lsh(lsh, test_sets)
+    #
+    # # Display results
+    # display_results("Minhash lsh", duplicates, query_time, build_time)
 
     # Find exact duplicates with Jaccard
     # duplicates, query_time = exact_duplicates_jaccard(train_data, test_data)
@@ -238,7 +244,7 @@ if __name__ == '__main__':
     display_results("Exact cosine", duplicates, query_time)
 
     # Build lsh
-    lsh, build_time, vec_test_data = lsh_cosine(train_data, test_data, k=8)
+    lsh, build_time, vec_test_data = lsh_cosine(train_data, test_data, k=2)
 
     #  Find duplicates with lsh-cosine
     query_time, duplicates = query_lsh_cosine(lsh, vec_test_data)
