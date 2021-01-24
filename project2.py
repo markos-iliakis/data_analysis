@@ -3,8 +3,10 @@ from sklearn.metrics.pairwise import cosine_similarity
 from datasketch import MinHash, MinHashLSH
 from lshashpy3 import LSHash
 import time
-import numpy as np
 from sklearn.feature_extraction.text import CountVectorizer
+import numpy as np
+from nltk import word_tokenize
+from gensim.models.word2vec import Word2Vec
 import nltk
 
 
@@ -78,7 +80,7 @@ def exact_duplicates_jaccard(train_data, test_data):
     return duplicates, stop_jaccard_time - start_jaccard_time
 
 
-def vectorize_data(train_data, test_data):
+def vectorize_data_with_bow(train_data, test_data):
 
     count_vectorizer = CountVectorizer(analyzer="word")
 
@@ -90,23 +92,29 @@ def vectorize_data(train_data, test_data):
     for _, test_row in test_data.iterrows():
         test_texts.append(test_row.Content)
 
-    vec_data = count_vectorizer.fit_transform(train_texts + test_texts)
+    train_data = count_vectorizer.fit_transform(train_texts)
 
-    return vec_data, len(train_texts)
+    test_data = count_vectorizer.transform(test_texts)
+
+    return train_data, test_data
 
 
-def exact_duplicates_cosine(train_data, test_data):
+def cosine_dist(x, y):
+    return 1 - np.dot(x, y) / ((np.dot(x, x) * np.dot(y, y)) ** 0.5)
+
+
+def exact_duplicates_cosine(train_set, test_set):
     # Set cosine query time
     start_cosine_time = time.time()
 
     # Vectorize train and text texts
-    vec_data, train_size = vectorize_data(train_data, test_data)
+    train_data, test_data = vec_with_Word2Vec(train_set, test_set)
 
     # Exact cosine similarity
     duplicates = 0
-    for test_row in range(train_size, vec_data.shape[0]):
-        for train_row in range(0, train_size):
-            distance = cosine_similarity(vec_data[test_row, :], vec_data[train_row, :])
+    for test_row in test_data:
+        for train_row in train_data:
+            distance = cosine_dist(test_row, train_row)
             if distance > 0.8:
                 duplicates += 1
                 break
@@ -119,30 +127,29 @@ def exact_duplicates_cosine(train_data, test_data):
 
 def lsh_cosine(train_data, test_data, k, l=1):
 
-    vec_data, train_size = vectorize_data(train_data, test_data)
+    train_data, test_data = vec_with_Word2Vec(train_data, test_data)
 
-    d = vec_data.shape[1]
+    d = train_data.shape[1]
 
     # Create lsh
     start_build_time = time.time()
     lsh = LSHash(hash_size=k, input_dim=d, num_hashtables=l)
 
     # Insert data
-    for row in range(0, train_size):
-        lsh.index(vec_data[row, :].toarray()[0])
+    for train_row in train_data:
+        lsh.index(train_row)
 
     stop_build_time = time.time()
 
-    # TODO return only test vectorizes data instead of vec_data, train_size
-    return lsh, stop_build_time - start_build_time, vec_data, train_size
+    return lsh, stop_build_time - start_build_time, test_data
 
 
 # TODO arguments: lsh, test_data
-def query_lsh_cosine(lsh, vec_data, train_size):
+def query_lsh_cosine(lsh, test_data):
     start_query_time = time.time()
     duplicates = 0
-    for row in range(train_size, vec_data.shape[0]):
-        nn = lsh.query(vec_data[row, :].toarray()[0], distance_func="cosine")
+    for test_row in test_data:
+        nn = lsh.query(test_row, distance_func="cosine")
         for _, distance in nn:
             if distance > 0.8:
                 duplicates += 1
@@ -153,8 +160,8 @@ def query_lsh_cosine(lsh, vec_data, train_size):
 
 
 def read_data(rows):
-    train_data = pandas.read_csv("datasets2020/datasets/q2a/corpusTrain.csv", delimiter=',', nrows=rows)
-    test_data = pandas.read_csv("datasets2020/datasets/q2a/corpusTest.csv", delimiter=',', nrows=rows)
+    train_data = pandas.read_csv("corpusTrain.csv", delimiter=',', nrows=rows)
+    test_data = pandas.read_csv("corpusTest.csv", delimiter=',', nrows=5373)
     return train_data, test_data
 
 
@@ -162,10 +169,49 @@ def display_results(method, duplicates, query_time, build_time=0.0):
     print(method, 'Duplicate sentences : ', duplicates, ' Build time : ', build_time, 's Query Time : ', query_time, 's')
 
 
+def average_words_embeddings(words, word2vec):
+    word_vec = []
+    for word in words:
+        try:
+            word_vec.append(word2vec.wv[word])
+        except KeyError:
+            print(word)
+
+    return np.mean(np.array(word_vec), axis=0)
+
+
+def vec_with_Word2Vec(train_set, test_set, sg=0):
+    # Vectorize train_set...............................................................................................
+    sentences = []
+    for _, row in train_set.iterrows():
+        sentences.append(word_tokenize(row.Content))
+    if test_set is not None:
+        for _, row in test_set.iterrows():
+            sentences.append(word_tokenize(row.Content))
+
+    model = Word2Vec(sentences=sentences, min_count=0, size=100, window=5, sg=sg)
+
+    x_train_content = []
+    for _, row in train_set.iterrows():
+        x_train_content.append(average_words_embeddings(word_tokenize(row.Content), model))
+    x_train_content = np.array(x_train_content)
+
+    # Vectorize test_set................................................................................................
+    if test_set is not None:
+        x_test_content = []
+        for _, row in test_set.iterrows():
+            x_test_content.append(average_words_embeddings(word_tokenize(row.Content), model))
+        x_test_content = np.array(x_test_content)
+    else:
+        x_test_content = None
+
+    return x_train_content, x_test_content
+
+
 if __name__ == '__main__':
     # Number of permutations
     perms = 32  # 16 | 32 | 64
-    rows = 200  # Number of rows to read
+    rows = 500  # Number of rows to read
 
     # Read data
     train_data, test_data = read_data(rows)
@@ -180,10 +226,10 @@ if __name__ == '__main__':
     display_results("Minhash lsh", duplicates, query_time, build_time)
 
     # Find exact duplicates with Jaccard
-    duplicates, query_time = exact_duplicates_jaccard(train_data, test_data)
+    # duplicates, query_time = exact_duplicates_jaccard(train_data, test_data)
 
     # Display results
-    display_results("Exact jaccard", duplicates, query_time)
+    # display_results("Exact jaccard", duplicates, query_time)
 
     # Find exact duplicates with cosine similarity
     query_time, duplicates = exact_duplicates_cosine(train_data, test_data)
@@ -192,10 +238,10 @@ if __name__ == '__main__':
     display_results("Exact cosine", duplicates, query_time)
 
     # Build lsh
-    lsh, build_time, vec_data, train_size = lsh_cosine(train_data, test_data, k=8)
+    lsh, build_time, vec_test_data = lsh_cosine(train_data, test_data, k=8)
 
     #  Find duplicates with lsh-cosine
-    query_time, duplicates = query_lsh_cosine(lsh, vec_data, train_size)
+    query_time, duplicates = query_lsh_cosine(lsh, vec_test_data)
 
     display_results("lsh-cosine", duplicates, query_time, build_time)
 
