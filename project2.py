@@ -100,7 +100,7 @@ def vectorize_data_with_bow(train_data, test_data):
 
     test_data = count_vectorizer.transform(test_texts)
 
-    return train_data, test_data
+    return train_data.toarray(), test_data.toarray()
 
 
 def cosine_dist(x, y):
@@ -112,7 +112,7 @@ def exact_duplicates_cosine(train_set, test_set):
     start_cosine_time = time.time()
 
     # Vectorize train and text texts
-    train_data, test_data = vec_with_Word2Vec(train_set, test_set)
+    train_data, test_data = vectorize_data_with_bow(train_set, test_set)
 
     # Exact cosine similarity
     duplicates = 0
@@ -131,7 +131,7 @@ def exact_duplicates_cosine(train_set, test_set):
 
 def lsh_cosine(train_data, test_data, k, l=1):
 
-    train_data, test_data = vec_with_Word2Vec(train_data, test_data)
+    train_data, test_data = vectorize_data_with_bow(train_data, test_data)
 
     d = train_data.shape[1]
 
@@ -166,8 +166,8 @@ def query_lsh_cosine(lsh, test_data):
 def read_data(rows):
     print('Reading Data')
 
-    train_data = pandas.read_csv("./datasets2020/datasets/q2a/corpusTrain.csv", delimiter=',', nrows=10)
-    test_data = pandas.read_csv("./datasets2020/datasets/q2a/corpusTest.csv", delimiter=',', nrows=None)
+    train_data = pandas.read_csv("corpusTrain.csv", delimiter=',', nrows=500)
+    test_data = pandas.read_csv("corpusTest.csv", delimiter=',', nrows=None)
     return train_data, test_data
 
 
